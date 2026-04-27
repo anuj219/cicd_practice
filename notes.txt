@@ -1,0 +1,144 @@
+clone repo 
+
+go build -o main .
+./main
+(i didnt do these as go wasnt installed on my local machine)
+
+created Dockerfile
+docker build 
+    docker build -t anujmehta219/go-web-app:v1 .
+    (anujmehta219 is docker username)
+
+docker run -p 8080:8080 -it anujmehta219/go-web-app:v1
+open localhost:8080/courses ... voila
+
+now we push this image made, onto dockerhub
+docker push anujmehta219/go-web-app:v1
+
+-----
+create k8s/manifests/deployment.yaml
+paste from documentation of k8s, change labels and name to go-web-app, 
+    labels in selector of service should be same as name of pod, as service discovery happens via labels
+
+create k8s/manifests/service.yaml
+same steps as deployment.yaml
+
+create /ingress.yaml the same way with same changes
+made notes in that file
+
+now to verify our k8 manifest
+thus we need k8 cluster 
+well use EKS
+
+downloaded eksctl and added it to path in environment vars
+downloaded aws cli msi and installed it
+went to aws root account and created access key
+in terminal -
+    aws configure
+    entered access key and secret key
+    done
+
+    eksctl create cluster --name demo-cluster --region us-east-1
+    kubectl apply -f k8s/manifests/deployment.yaml
+    kubectl get pods
+
+    kubectl apply -f k8s/manifests/service.yaml
+    kubectl apply -f k8s/manifests/ingress.yaml
+    kubectl get ing (no address yet)
+        thus we need an ingress controller, which assigns address to ingress controller
+
+    kubectl edit svc go-web-app
+    kubectl get svc
+        31629
+    kubectl get nodes -o wide
+        copy any ip along with nodeport
+        54.147.99.42:31629
+    
+    edit inbound rules for the particular node on aws console (us-east region)
+        Type: Custom TCP
+        Port: 31629
+        Source:
+        0.0.0.0/0
+    
+    http://54.147.99.42:31629/courses -> was able to access the page
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.1/deploy/static/provider/aws/deploy.yaml
+
+kubectl get pods -n ingress-nginx
+    ingress-nginx-controller-6fb6bc46cb-tdrfl   1/1     Running     0          5m22s
+
+kubectl edit pod ingress-nginx-controller-6fb6bc46cb-tdrfl -n ingress-nginx
+    - --ingress-class=nginx
+    relates to ingress.yaml --> ingressClassName: nginx
+
+kubectl get ing
+    NAME         CLASS   HOSTS              ADDRESS                                                                         PORTS   AGE
+    go-web-app   nginx   go-web-app.local   a4af2fda4f8ab4cf7a9bb2b521d11aaf-c5a33f2496a89bff.elb.us-east-1.amazonaws.com   80      19h
+
+    a4af2fda4f8ab4cf7a9bb2b521d11aaf-c5a33f2496a89bff.elb.us-east-1.amazonaws.com/courses wont work 
+        why - 
+
+nslookup a4af2fda4f8ab4cf7a9bb2b521d11aaf-c5a33f2496a89bff.elb.us-east-1.amazonaws.com
+    PS C:\Users\anujv\Desktop\Programming\Codes\Any Notes\MLOPS\go-web-app> nslookup a4af2fda4f8ab4cf7a9bb2b521d11aaf-c5a33f2496a89bff.elb.us-east-1.amazonaws.com
+    Server:  UnKnown
+    Address:  240c::6666
+
+    Non-authoritative answer:
+    Name:    a4af2fda4f8ab4cf7a9bb2b521d11aaf-c5a33f2496a89bff.elb.us-east-1.amazonaws.com
+    Addresses:  54.235.137.52
+            34.205.99.219
+
+sudo vim /etc/hosts
+    added 
+        34.205.99.219 go-web-app.local to it
+    mapping done and saved
+
+accessed http://go-web-app.local/home
+    works
+
+    in org, you will add organizational hostname like amazon.com or etc instead of go-web-app.local
+
+Helm -
+    folder created
+    installed Helm
+    helm create go-web-app-chart
+
+        charts  
+        templates  
+    349 .helmignore
+    1152 Chart.yaml 
+    5282 values.yaml
+
+    remove files from template/
+    copy manifest files to it
+
+    replaced values.yaml file content with abhishek's values.yaml
+    modified deployment.yaml
+        - image: anujmehta219/go-web-app:{{ .Values.image.tag }}
+        means helm will look for look for tag from values.yaml file, when executed
+
+to verify helm is working
+    - kubectl get all
+    
+kubectl delete deploy go-web-app
+kubectl delete svc go-web-app
+kubectl delete ing go-web-app
+now get all - nothing there
+
+helm install go-web-app ./go-web-app-chart
+kubectl get deployment
+kubectl get svc
+kubectl get ing
+
+kubectl edit deploy go-web-ap
+    -> and checked the v1 dynamic change
+
+
+-------------------------------
+CI/CD - 
+
+created .github/workflows/ci.yaml
+    with jobs build, code-quality, push, update-newtag-in-helm-chart, 
+
+    added DOCKERHUB_USERNAME and TOKEN to github repository secrets
+    added github's classic TOKEN to repository secret

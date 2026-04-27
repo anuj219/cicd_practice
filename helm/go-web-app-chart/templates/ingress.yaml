@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: go-web-app
+spec:
+  ingressClassName: nginx
+  # used by ingress resource to be identified by ingress controller
+  # as an org might have multiple teams working
+  # without this, nginx might not watch this ingress controller
+  # why nginx though? 
+  
+  rules:
+  - host: go-web-app.local
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: go-web-app
+            port:
+              number: 80
