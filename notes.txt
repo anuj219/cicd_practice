@@ -170,3 +170,6 @@ CD -
 
         > new app > go-web-app , sync:automatic, self-heal, repo_url:https://github.com/anuj219/cicd_practice.git, default cluster url https://kubernetes.default.svc
         default namespace, values.yaml > create
+
+pushed the changes, action ran and created new image in dockerhub
+tag was updated
