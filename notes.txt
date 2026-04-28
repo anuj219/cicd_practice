@@ -142,3 +142,31 @@ created .github/workflows/ci.yaml
 
     added DOCKERHUB_USERNAME and TOKEN to github repository secrets
     added github's classic TOKEN to repository secret
+
+    pushed the changes
+    -> in github actions, the workflow ran
+    -> did all the jobs and pushed a new commit "Update tag in Helm chart"
+    -> verified the new tag pushed
+
+CD -
+    ran kubectl create namespace argocd kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    gave -> The CustomResourceDefinition "applicationsets.argoproj.io" is invalid: metadata.annotations: Too long: may not be more than 262144 bytes
+    so ran - kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml
+
+    then - kubectl patch svc argocd-server -n argocd -p '{\"spec\": {\"type\": \"LoadBalancer\"}}'
+
+    kubectl get svc argocd-server -n argocd
+        -> argocd-server   LoadBalancer   10.100.67.150   a0719bdc0b24b469781db60a4a01d9bf-253746439.us-east-1.elb.amazonaws.com   80:31905/TCP,443:31830/TCP   7m16s
+
+    went to : a0719bdc0b24b469781db60a4a01d9bf-253746439.us-east-1.elb.amazonaws.com
+        argo cd UI opened
+        username - admin, 
+        password- 
+            kubectl get secrets -n argocd
+            kubectl edit secret argocd-initial-admin-secret -n argocd
+            echo OEJFNExFYlBFZ0JHTVV1Tw== | base64 --decode        
+                8BE4LEbPEgBGMUuO
+        signed in
+
+        > new app > go-web-app , sync:automatic, self-heal, repo_url:https://github.com/anuj219/cicd_practice.git, default cluster url https://kubernetes.default.svc
+        default namespace, values.yaml > create
